@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Orbit">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://huggingface.co" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<title>Orbit</title>
+</head>
+<body data-phase="intro" data-mode="walk" data-level="info">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.2 2.5 5.5 13.1c-.3.4 0 1 .5 1H11l-1 7.4c-.1.6.7.9 1 .4l7.7-10.6c.3-.4 0-1-.5-1H13l1-7.4c.1-.6-.7-.9-1-.4Z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11m0-11-11 11"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3.5v11M8 7.2l4-3.7 4 3.7M7.5 10.5H6.8A1.8 1.8 0 0 0 5 12.3v6.4a1.8 1.8 0 0 0 1.8 1.8h10.4a1.8 1.8 0 0 0 1.8-1.8v-6.4a1.8 1.8 0 0 0-1.8-1.8h-.7"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M19 12H5.5M11 6.5 5.5 12l5.5 5.5"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M5 12h13.5M13 6.5l5.5 5.5-5.5 5.5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5.5M6.5 11 12 5.5l5.5 5.5"/></symbol>
+  <symbol id="i-stack" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="2.5"/><path d="M6.5 4h11"/><path d="m4 16 4.5-4 3.5 3 2.5-2 5.5 4.5"/></symbol>
+</svg>
+
+<div id="stage" class="stage">
+  <video id="cam" playsinline muted autoplay></video>
+  <div class="scrim-top"></div><div class="scrim-bottom"></div>
+  <div class="tap-layer" aria-hidden="true"></div>
+</div>
+
+<canvas id="particles" class="particles" aria-hidden="true"></canvas>
+
+<!-- camera -->
+<header class="top hud">
+  <button id="torchBtn" class="glass icon-btn" aria-label="Light" hidden><svg class="ic fill"><use href="#i-bolt"/></svg></button>
+  <div id="status" class="glass status" role="status" aria-live="polite"><span class="status-dot"></span><span id="statusText">Starting camera</span></div>
+  <button id="settingsBtn" class="glass icon-btn" aria-label="Settings"><svg class="ic"><use href="#i-sliders"/></svg></button>
+</header>
+<h2 id="caption" class="caption hud"></h2>
+
+<div id="hint" class="glass hint hud" aria-live="polite"><svg class="ic"><use id="hintIcon" href="#i-left"/></svg><span id="hintText"></span></div>
+<div id="elev" class="glass elev hud" aria-hidden="true"><span class="elev-zone"></span><span class="elev-knob"></span></div>
+<div id="toast" class="glass toast" role="status" aria-live="polite"></div>
+
+<footer class="dock hud">
+  <div class="glass segmented" role="radiogroup" aria-label="Capture style">
+    <span id="segThumb" class="seg-thumb"></span>
+    <button role="radio" data-mode="walk" aria-checked="true">Walk around</button>
+    <button role="radio" data-mode="spin" aria-checked="false">Turntable</button>
+  </div>
+  <div class="dock-row">
+    <button id="libraryBtn" class="library" aria-label="Your scans"><img id="lastThumb" alt="" hidden><svg class="ic"><use href="#i-stack"/></svg><span id="libCount" class="badge" hidden></span></button>
+    <button id="shutter" class="shutter" aria-label="Start scan"><span class="shutter-core"></span></button>
+    <div id="meter" class="meter" aria-live="off">
+      <svg viewBox="0 0 44 44"><defs><linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8FE3FF"/><stop offset=".55" stop-color="#B9A6FF"/><stop offset="1" stop-color="#FFA8D6"/></linearGradient></defs><circle class="meter-track" cx="22" cy="22" r="19"/><circle id="meterArc" class="meter-arc" cx="22" cy="22" r="19"/></svg>
+      <span id="pct" class="meter-pct">0</span>
+      <span id="frames" class="meter-frames"></span>
+    </div>
+  </div>
+</footer>
+
+<!-- intro -->
+<section id="intro" class="screen intro open" aria-label="Welcome">
+  <div class="ambient aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div id="introAnchor" class="intro-anchor" aria-hidden="true"></div>
+  <p id="specimen" class="specimen" aria-hidden="true"><span id="specName"></span><span id="specMeta"></span></p>
+  <div class="intro-copy">
+    <div class="lockup"><h1 aria-label="Orbit"><span aria-hidden="true" style="--i:0">O</span><span aria-hidden="true" style="--i:1">r</span><span aria-hidden="true" style="--i:2">b</span><span aria-hidden="true" style="--i:3">i</span><span aria-hidden="true" style="--i:4">t</span></h1></div>
+    <p class="intro-lede"><span>Scan real objects into <em>3D</em></span><span>with your phone.</span></p>
+    <button id="openCam" class="btn btn-primary">Open camera</button>
+    <p class="intro-fine">Needs camera and motion access. Scans stay on this phone until you share them.</p>
+    <p id="introErr" class="intro-err" role="alert"></p>
+  </div>
+</section>
+
+<!-- review -->
+<section id="review" class="screen review" aria-label="Scan result">
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+  <button class="glass icon-btn review-close" data-close="review" aria-label="Back to camera"><svg class="ic"><use href="#i-close"/></svg></button>
+  <div id="cloudAnchor" class="cloud-anchor" aria-label="3D preview. Drag to turn it."></div>
+  <p class="cloud-note">Shape preview. Drag to turn it.</p>
+  <div class="sheet">
+    <span class="grabber"></span>
+    <input id="scanName" class="sheet-title" type="text" maxlength="60" autocomplete="off" enterkeyhint="done" aria-label="Scan name">
+    <p id="rvSub" class="sheet-sub"></p>
+
+    <div class="tabs" role="tablist" aria-label="Scan details">
+      <span id="tabThumb" class="tab-thumb"></span>
+      <button role="tab" id="tab-overview" data-tab="overview" aria-selected="true" aria-controls="pane-overview">Overview</button>
+      <button role="tab" id="tab-quality" data-tab="quality" aria-selected="false" aria-controls="pane-quality">Quality</button>
+      <button role="tab" id="tab-export" data-tab="export" aria-selected="false" aria-controls="pane-export">Export</button>
+    </div>
+
+    <div id="panes" class="panes">
+      <section id="pane-overview" class="pane active" role="tabpanel" aria-labelledby="tab-overview">
+        <div class="hero">
+          <div id="scoreDots" class="dot-ring" aria-hidden="true"></div>
+          <div class="hero-num"><span id="scoreNum"></span><small>score</small></div>
+        </div>
+        <p id="scoreWord" class="hero-word"></p>
+        <p id="scoreLine" class="hero-line"></p>
+
+        <dl id="facts" class="facts"></dl>
+
+        <figure class="dial-card">
+          <div class="dial-wrap">
+            <div id="coverDial" class="dial" aria-hidden="true"></div>
+            <img id="dialThumb" class="dial-thumb" alt="">
+          </div>
+          <figcaption class="dial-legend">
+            <span><i class="sw around"></i>Around <b id="legAround"></b></span>
+            <span><i class="sw above"></i>From above <b id="legAbove"></b></span>
+          </figcaption>
+        </figure>
+
+        <div class="group">
+          <div class="list"><div class="row">
+            <label class="row-label" for="scanHeight">Real height</label>
+            <span class="row-trail">
+              <input id="scanHeight" class="height-input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="Add">
+              <span class="mini-seg" role="radiogroup" aria-label="Unit"><button data-unit="cm">cm</button><button data-unit="in">in</button></span>
+            </span>
+          </div></div>
+        </div>
+
+        <div class="btn-row">
+          <button id="fillBtn" class="btn btn-tinted"><span id="fillLabel">Fill gaps</span></button>
+          <button id="againBtn" class="btn btn-tinted">New scan</button>
+        </div>
+      </section>
+
+      <section id="pane-quality" class="pane" role="tabpanel" aria-labelledby="tab-quality">
+        <ul id="meters" class="meters"></ul>
+        <h3 class="group-title">To improve this scan</h3>
+        <div class="group"><ul id="tips" class="list tips"></ul></div>
+      </section>
+
+      <section id="pane-export" class="pane" role="tabpanel" aria-labelledby="tab-export">
+        <div class="file-card">
+          <div id="fileModel" class="file-model" aria-hidden="true"></div>
+          <div class="file-meta"><b id="zipName"></b><small id="zipSize">Calculating size</small></div>
+        </div>
+        <ul id="zipContents" class="contents"></ul>
+
+        <h3 class="group-title">Make a photo-textured model</h3>
+        <ol class="steps">
+          <li><b>Share the zip to Google Drive</b><span>into the folder 3d-scanner/scans</span></li>
+          <li><b>Open the Orbit notebook in Colab</b><span>colab_scanner.ipynb, from the pipeline folder</span></li>
+          <li><b>Choose Runtime, then Run all</b><span>your model appears in 3d-scanner/models, ready for AR</span></li>
+        </ol>
+        <button id="deleteBtn" class="btn btn-plain danger">Delete scan</button>
+      </section>
+    </div>
+
+    <div class="sheet-actions">
+      <button id="shareBtn" class="btn btn-primary"><svg class="ic"><use href="#i-share"/></svg><span id="shareLabel">Share scan</span><span id="shareMeta" class="btn-meta"></span></button>
+    </div>
+  </div>
+</section>
+
+<!-- library -->
+<section id="library" class="screen page" aria-label="Your scans">
+  <div class="ambient page-aura" aria-hidden="true"><i></i><i></i><i></i></div>
+  <header class="page-head"><h2>Scans</h2><button class="glass icon-btn" data-close="library" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></header>
+  <div class="group"><ul id="scanList" class="list"></ul></div>
+  <div id="libEmpty" class="empty"><div id="emptyAnchor" class="empty-anchor" aria-hidden="true"></div><p>No scans yet</p><span>Your scans are kept here, on this phone.</span><button class="btn btn-tinted" data-close="library">Start a scan</button></div>
+</section>
+
+<!-- settings -->
+<section id="settings" class="screen page" aria-label="Settings">
+  <div class="ambient page-aura" aria-hidden="true"><i></i><i></i><i></i></div>
+  <header class="page-head"><h2>Settings</h2><button class="glass icon-btn" data-close="settings" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></header>
+  <h3 class="group-title">Feedback</h3>
+  <div class="group"><div class="list">
+    <label class="row"><span class="row-label">Haptics<small>A tap for every new angle</small></span><input type="checkbox" switch data-setting="haptics"></label>
+    <label class="row"><span class="row-label">Sounds<small>Quiet ticks. Follows the silent switch</small></span><input type="checkbox" switch data-setting="sound"></label>
+    <label class="row"><span class="row-label">Spoken guidance<small>Hear the next step without looking</small></span><input type="checkbox" switch data-setting="voice"></label>
+  </div></div>
+  <h3 class="group-title">Capture</h3>
+  <div class="group"><div class="list">
+    <label class="row"><span class="row-label">Finish automatically<small>Stop once the loop is complete</small></span><input type="checkbox" switch data-setting="autoFinish"></label>
+    <label class="row"><span class="row-label">Maximum detail<small>4K keyframes when the camera allows</small></span><input type="checkbox" switch data-setting="maxDetail"></label>
+    <label class="row"><span class="row-label">More frames<small>Twice the keyframes, larger files</small></span><input type="checkbox" switch data-setting="dense"></label>
+    <label class="row"><span class="row-label">Also record video<small>Keep the full clip too</small></span><input type="checkbox" switch data-setting="video"></label>
+  </div></div>
+  <h3 class="group-title">Stability</h3>
+  <div class="group"><div class="list">
+    <label class="row"><span class="row-label">Precise outlines<small id="preciseNote">Sharper object edges. Uses more memory</small></span><input id="preciseSwitch" type="checkbox" switch data-setting="precise"></label>
+    <button id="diagBtn" class="row row-btn" type="button"><span class="row-label">Copy diagnostics<small id="diagNote">Send this if the app keeps restarting</small></span></button>
+  </div></div>
+  <textarea id="diagOut" class="diag-out" readonly hidden aria-label="Diagnostics" rows="8"></textarea>
+  <p id="storageNote" class="group-foot"></p>
+</section>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

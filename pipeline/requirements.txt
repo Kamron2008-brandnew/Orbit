@@ -1,0 +1,7 @@
+trimesh
+numpy
+scipy
+networkx
+fast-simplification
+pillow
+usd-core
