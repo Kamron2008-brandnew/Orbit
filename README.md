@@ -1,113 +1,125 @@
-# 3D Scanner App
+# Orbit
 
-See [PLAN.md](PLAN.md) for the full plan. This repo currently covers the first two "Immediate Next Steps".
+Scan a real object into 3D with a phone. Orbit is a web app that runs in Safari and captures the object, and a
+pipeline that turns the capture into a textured model. See [PLAN.md](PLAN.md) for the original plan.
 
-## ios-prototype/ — ARKit LiDAR live mesh + export
+| Folder | What it is |
+| --- | --- |
+| `web-capture/` | The capture app: HTML, CSS and plain ES modules, no build step. |
+| `pipeline/` | Python and shell scripts that turn a capture (or a LiDAR scan from another app) into a model. |
+| `ios-prototype/` | A native LiDAR prototype. Never built: it needs Xcode 26. |
+| `tests/` | Unit tests for the parts of the app that don't need a browser. |
 
-SwiftUI + RealityKit app: shows the live LiDAR mesh, then exports USDZ / OBJ / PLY / STL via ModelIO and the share sheet.
-Needs a LiDAR device (iPhone 12 Pro or later, iPad Pro); the simulator has no LiDAR.
-**Not yet built or run** (written without Xcode installed).
+## The capture app
+
+Open it on the phone and point the camera at an object. It finds and outlines the object by itself. Tap the
+shutter (recording never starts on its own) and walk once around it. The app keeps the sharpest photo for every
+7.5 degrees, at 4K where the camera allows, each with the object's outline. When the loop is complete it builds a
+3D preview and shows a score, and the scan can be shared as a zip.
+
+### How it works
+
+- **Finding the object** (`tracking.js`, `vision.js`). A few points around the middle of the view are tried in
+  turn with MediaPipe's interactive segmenter. A guess is kept only if it is one plausible object: not most of
+  the frame, near the middle, and with its outline on a real colour edge nearly all the way round.
+- **Precise outlines** (`precise.js`, `refine.js`). EdgeTAM, an on-device Segment Anything 2, re-outlines the
+  object from a snug box plus a few points: once when it is found, now and then while scanning, and on every
+  keyframe from the full-resolution photo afterwards. It needs WebGPU.
+- **Coverage and keyframes** (`scan.js`, `geometry.js`). Walking is followed with the phone's compass, a
+  turntable by how the picture moves. The loop around the object is split into 24 sectors, 92% of which must be
+  covered; views from above are an optional extra.
+- **3D preview** (`hull.js`). The outlines from every angle carve a block of voxels down to the object's shape
+  (a visual hull), and the surface becomes a 6,000-point coloured cloud.
+- **Look** (`particles.js`, `scenes/`). Everything on screen that isn't text is one WebGL particle system: the
+  intro, the object's outline, the coverage rings and the result screen.
+- **Staying alive** (`guard.js`). iOS kills a page that uses too much memory without a word, so before each heavy
+  step the app leaves a marker. A marker still there on the next start means the page died in that step, and the
+  app steps down (CPU instead of GPU, no precise outlines, standard detail) and says so. Settings, under
+  Stability, shows this and has "Copy diagnostics".
+
+### Layout of `web-capture/js/`
+
+| Module | Responsibility |
+| --- | --- |
+| `main.js` | Entry point: the frame loop and the page lifecycle. |
+| `state.js`, `settings.js`, `config.js`, `ui.js`, `util.js` | Shared state, saved settings, tuning numbers, toasts and phases, small helpers. |
+| `camera.js`, `models.js`, `tick.js` | The camera stream, loading the two models, the analysis loop. |
+| `tracking.js`, `precise.js`, `scan.js`, `guidance.js` | Following the object, precise outlines, scanning, what the status line says. |
+| `review.js`, `share.js`, `library.js` | The result screen, packing and sharing the zip, the scan library and settings page. |
+| `scenes/` | How each screen is drawn with particles. |
+| `vision.js`, `hull.js`, `geometry.js`, `zip.js`, `store.js`, `particles.js` | Image analysis, the visual hull, coverage maths, the zip writer, IndexedDB, the particle system. |
+| `guard.js`, `motion.js`, `haptics.js`, `sound.js`, `refine.js` | Crash markers and the error log, phone sensors, haptics, sounds, the EdgeTAM wrapper. |
+
+### Running it
+
+The camera needs HTTPS, so it is hosted on Netlify: drag the `web-capture` folder onto the site's Deploys page,
+then fully reopen the tab in Safari. To try it on a computer:
 
 ```bash
-brew install xcodegen
-cd ios-prototype && xcodegen generate && open Scanner.xcodeproj
+npm run serve        # http://localhost:8790
 ```
 
-Set your signing team in Xcode, run on device. Export format support depends on ModelIO;
-the app reports an error if a format is unavailable.
+### Checks
 
-## web-capture/: Orbit, the capture app (runs in Safari, no Xcode)
+```bash
+npm install
+npm test             # unit tests
+npm run lint
+npm run format       # Prettier
+```
 
-A web app you open on the iPhone. Point the camera at the object: it is found and outlined automatically.
-Then tap the shutter (recording never starts by itself) and walk one loop around it. Keyframes are picked automatically, the
-sharpest per 7.5 degrees, in 4K when the camera allows, each with an object outline.
+### What has and hasn't been tested
 
-**Object accuracy** (the main focus):
-- Automatic detection probes the middle of the view and only accepts a guess that is one plausible object:
-  not most of the frame, where the camera points, and with its outline on a real colour edge nearly all the
-  way round (a cut-out patch of floor or wall fails this: 0.57 versus 0.94 for a real object). Point
-  somewhere else and it lets go and looks again.
-- A fast tracker (MediaPipe interactive segmenter, `js/vision.js`) follows the object live at 512 px, guided
-  by points spread over it, with a colour check so it can't slide onto the table or a neighbour.
-- A precise model (EdgeTAM, Meta's on-device Segment Anything 2, `js/refine.js`, WebGPU when available)
-  re-outlines it from a snug box plus points: on your tap, several times a second while scanning, and on every
-  keyframe from the full-resolution photo after the scan. Tested on a synthetic labelled bottle: 0.994 to
-  0.996 IoU (576x1024) versus 0.991 for the fast tracker (288x512); found automatically at 0.995.
+Tested in desktop Chrome with a synthetic camera: the full scan, review, share, library, delete and fill-gaps
+flows, the crash recovery, and the precise outlines (0.996 IoU on a labelled test bottle). **Not yet tested on a
+real iPhone**: real-object accuracy and speed, 4K capture, haptics, the share sheet. The unit tests cover the
+outline finder, the visual hull, coverage, the zip writer, the particle maths and the crash guard.
 
-**Look and feel:** a WebGL particle system (`js/particles.js`) is the signature, glowing in an ambient
-iridescent palette (ice cyan, periwinkle, violet, rose). The intro is a gallery on a turntable: a scanning
-ring sweeps down each shape and rebuilds it layer by layer (the first one condenses out of a nebula), the
-points are lit like a solid with a moving glint, an aurora behind takes each shape's colours, and a starfield
-drifts at three depths. Drag to spin it, tap for the next shape. In the camera, the object's
-outline flows through the palette, the shutter ring turns iridescent once there is an object to scan, its body is a cloud of its own colours, rings show coverage, and the result is a 6,000-point 3D
-preview carved from the outlines (`js/hull.js`). The result screen is drawn with the same particles: over a
-frosted sheet lit by an ambient glow taken from the object's own colours, the Overview score is a ring of particles
-with drifting stardust, coverage is a top-down particle dial with a slow radar sweep, Quality is particle meters,
-and Export shows a tiny turning copy of the object on the file. Particles flow from one tab's layout to the next
-and ride along with the scroll. Instrument Sans, one accent colour (ice cyan), native switches.
+## The pipeline
 
-**Stability** (`js/guard.js`): iOS kills a page that uses too much memory without any warning, so before each
-heavy step (loading each model, scanning, building the preview, packing the zip) the app leaves a marker. If a
-marker is still there on the next start, the page died during that step and the app steps down: object detection
-falls back from GPU to CPU, precise outlines switch off, a scan crash drops to standard detail. Nothing is
-locked, it is all in Settings under Stability, which also has "Copy diagnostics". Other protections: the two
-models load one after the other (never together), precise outlines need WebGPU (without it the model would
-run on the main thread and freeze the page), they switch themselves off after three failed runs, the zip is
-built from the stored files without loading them all into memory, the particle canvas recovers from a lost
-WebGL context, and closed screens no longer animate hidden blurred layers in the background.
-
-Hosting: needs HTTPS for the camera. Drag the `web-capture` folder onto your Netlify site's Deploys page.
-
-Tested in desktop Chrome/Chromium with synthetic camera scenes and simulated phone orientation.
-**Not yet tested on an iPhone**: real-camera accuracy and speed (EdgeTAM takes about 3 s per frame on a
-2017 MacBook's GPU; an iPhone 16 Pro should be far faster, unmeasured), 4K capture, haptics, share sheet.
-
-## pipeline/: scans to high-quality models
-
-**High quality (photo-textured):** `colab_scanner.ipynb` on free Colab (T4 GPU). Save Orbit zips to
-`MyDrive/3d-scanner/scans/`, open the notebook, Runtime > Run all. For every new scan it runs:
-`prepare_scan.py` (unpack, upscale masks) then `run_hq.sh`, which does COLMAP for camera positions, then OpenMVS for
-dense surface, mesh, refinement and texture, then `finish_model.py` (stand upright from the camera orbit,
-crop to the object, cut away the table, scale to the real height, export GLB + USDZ + OBJ). Models land
-in `MyDrive/3d-scanner/models/<name>/`. The first run builds COLMAP and OpenMVS (about 40 minutes) and
-caches them in Drive. **The notebook and run_hq.sh have not been run yet.** `finish_model.py` was tested on a
-synthetic scene (tilted, shifted, with a floor and a stray fragment): it came out exactly 0.30 x 0.60 x 0.30 m,
-upright, floor and fragment removed, textured GLB and USDZ.
+**High quality, photo-textured.** `colab_scanner.ipynb` on free Colab (a T4 GPU). Put Orbit zips in
+`MyDrive/3d-scanner/scans/`, open the notebook and choose Runtime, then Run all. For each new scan it runs
+`prepare_scan.py` (unpack, upscale the masks), `run_hq.sh` (COLMAP for camera positions, then OpenMVS for the dense
+surface, mesh and texture) and `finish_model.py` (stand it upright from the camera orbit, crop to the object, cut
+away the table, scale to the real height, write GLB, USDZ and OBJ). Models appear in
+`MyDrive/3d-scanner/models/<name>/`. The first run builds COLMAP and OpenMVS, which takes about 40 minutes, and
+caches them in Drive. **The notebook and `run_hq.sh` have not been run yet.** `finish_model.py` was tested on a
+synthetic scene (tilted, shifted, with a floor and a stray fragment) and came out exactly 0.30 x 0.60 x 0.30 m,
+upright, with the floor and fragment gone.
 
 ```bash
 cd pipeline
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
-# clean any raw mesh (e.g. LiDAR export, COLMAP output)
-.venv/bin/python clean_mesh.py scan.ply out --name chair --height 0.85 --low-faces 20000
-
-# smoke test with a synthetic bad scan
-.venv/bin/python make_test_scan.py /tmp/test_scan.ply
-.venv/bin/python clean_mesh.py /tmp/test_scan.ply /tmp/out --height 1.0
-
-# Orbit zip -> COLMAP-ready folder (keyframes, upscaled masks, saved height)
-.venv/bin/python prepare_scan.py my-object.zip workspace/
-
-# photos or Orbit zips -> mesh: colab_scanner.ipynb on free Colab (T4 GPU). It builds COLMAP with CUDA once,
-# caches it to Drive, then runs prepare_scan.py (for zips), run_colmap.sh and clean_mesh.py.
-# Untested so far (needs a real Colab run).
+.venv/bin/python prepare_scan.py my-object.zip workspace/                   # an Orbit zip, ready for COLMAP
+.venv/bin/python clean_mesh.py scan.ply out --name chair --height 0.85      # clean any raw mesh
+.venv/bin/python make_test_scan.py /tmp/test_scan.ply                       # a synthetic bad scan to try it on
 ```
 
-**LiDAR scans from other apps** (`import_lidar.py`): to try the iPhone's LiDAR before building a native app,
-scan with an app such as Scaniverse or Polycam, export the mesh as GLB (or OBJ/PLY), and run:
+**LiDAR scans from other apps.** To try the iPhone's LiDAR before building a native app, scan with Scaniverse or
+Polycam, export the mesh as GLB (or OBJ, PLY), and run:
 
 ```bash
 .venv/bin/python import_lidar.py scan.glb out --name mug
 ```
 
-It keeps only the object: finds which way is up, removes the floor or table it stood on (and the table legs,
-and a wall if one was caught), keeps the piece in the middle with any loose bits of it (a handle, a lid), stands
-it at y = 0, and writes `out/mug/mug.glb`, `.obj` and `.usdz` with the texture. LiDAR scans are already at real
-scale, so no height is needed. Tested on synthetic scans (a mug on a table on a floor beside a wall, y-up GLB and
-z-up PLY, and an object-only scan): it kept exactly the mug and its separate handle. Not yet run on a real export.
+It works out which way is up, removes the floor or table the object stood on (and its legs, and a wall if one was
+caught), keeps the piece in the middle together with loose parts of it (a handle, a lid), stands it at y = 0, and
+writes `out/mug/mug.glb`, `.obj` and `.usdz` with the texture. LiDAR scans are already at real scale. Tested on
+synthetic scans (a mug on a table beside a wall, y-up GLB and z-up PLY, and an object-only scan); not yet run on a
+real export.
 
-`blender_cleanup.py` is an alternative cleanup that also writes USDZ
-(`blender --background --python blender_cleanup.py -- in.ply out_dir`).
-It is untested; Blender isn't installed here.
+`blender_cleanup.py` is an alternative cleanup that also writes USDZ. It is untested.
 
-Gaps vs. the plan: no texture baking, no retopology, no background removal yet.
+Not done: texture baking, retopology, background removal.
+
+## ios-prototype/
+
+A SwiftUI and RealityKit app that shows the live LiDAR mesh and exports USDZ, OBJ, PLY or STL. It needs a LiDAR
+device (iPhone 12 Pro or later), has never been built, and an iPhone on iOS 26 needs Xcode 26, which needs a newer
+Mac than a 2017 MacBook.
+
+```bash
+brew install xcodegen
+cd ios-prototype && xcodegen generate && open Scanner.xcodeproj
+```
