@@ -21,17 +21,24 @@ function scanJson(rec) {
     height_m: rec.heightM,
     image_size: rec.imageSize,
     frame_count: rec.frames.length,
-    masks: "masks/<image name>.png: white = object, black = background (COLMAP --ImageReader.mask_path layout). Masks are low-res; prepare_scan.py upscales them.",
-    angles: "azimuth is degrees around the object relative to the first frame; elevation is degrees the camera looked down.",
+    masks:
+      "masks/<image name>.png: white = object, black = background (COLMAP --ImageReader.mask_path layout). Masks are low-res; prepare_scan.py upscales them.",
+    angles:
+      "azimuth is degrees around the object relative to the first frame; elevation is degrees the camera looked down.",
     preview: rec.cloud ? "preview.ply: rough silhouette point cloud (visual hull) built on the phone" : null,
     score: rec.score,
     stats: rec.stats,
-    coverage: BANDS.map((b, i) => ({ band: b.label, elevation_deg: [b.elevMin, b.elevMax], sectors: b.sectors, covered: rec.coverage[i] })),
+    coverage: BANDS.map((b, i) => ({
+      band: b.label,
+      elevation_deg: [b.elevMin, b.elevMax],
+      sectors: b.sectors,
+      covered: rec.coverage[i],
+    })),
     frames: rec.frames,
   };
 }
 
-const README = rec => `${rec.name}, captured with Orbit.
+const README = (rec) => `${rec.name}, captured with Orbit.
 
 images/      sharp keyframes picked automatically while scanning
 masks/       object masks for each keyframe (white = object)
@@ -82,12 +89,14 @@ $("shareBtn").addEventListener("click", async () => {
   $("shareLabel").textContent = "Packing";
   try {
     const files = (await store.getFiles(rec.id)).sort((a, b) => (a.name < b.name ? -1 : 1));
-    const list = files.map(f => ({ name: f.name, data: f.blob }));
+    const list = files.map((f) => ({ name: f.name, data: f.blob }));
     if (rec.cloud) list.push({ name: "preview.ply", data: toPly(rec.cloud, rec.heightM) });
     list.push({ name: "scan.json", data: JSON.stringify(scanJson(rec), null, 2) });
     list.push({ name: "README.txt", data: README(rec) });
     guard.begin("pack");
-    const zip = await makeZip(list, p => { $("shareMeta").textContent = `${Math.round(p * 100)}%`; });
+    const zip = await makeZip(list, (p) => {
+      $("shareMeta").textContent = `${Math.round(p * 100)}%`;
+    });
     guard.end("pack");
     const file = new File([zip], `${slug(rec.name)}.zip`, { type: "application/zip" });
     state.preparedZip = { id: rec.id, file };

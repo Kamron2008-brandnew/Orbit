@@ -11,14 +11,22 @@ import { sleep } from "./util.js";
 // after the camera opens), and each load is marked for the crash guard, so one that kills the page is not
 // repeated the same way.
 export async function loadModels() {
-  const around = async (name, fn) => { guard.begin(name); try { return await fn(); } finally { guard.end(name); } };
+  const around = async (name, fn) => {
+    guard.begin(name);
+    try {
+      return await fn();
+    } finally {
+      guard.end(name);
+    }
+  };
   // 1. the live tracker: GPU first, CPU if the GPU one has killed the page before; none after two deaths
   if (guard.struck("outliner-CPU", 2)) {
     outliner.failed = true;
     toast("Object detection is off on this device. Scanning still works without it.", 5200);
   } else {
-    try { await outliner.load({ delegates: guard.struck("outliner-GPU") ? ["CPU"] : ["GPU", "CPU"], around }); }
-    catch (err) {
+    try {
+      await outliner.load({ delegates: guard.struck("outliner-GPU") ? ["CPU"] : ["GPU", "CPU"], around });
+    } catch (err) {
       outliner.failed = true;
       logError("outliner", err);
       toast("Object detection couldn't load. Scanning still works without it.", 4200);
@@ -34,8 +42,14 @@ export async function loadRefiner(around = async (n, fn) => fn()) {
   if (refiner.ready || refiner.loading) return;
   refiner.loading = true;
   refiner.failed = false;
-  try { await refiner.load(p => { state.refineLoad = p; }, { around }); }
-  catch (err) {
+  try {
+    await refiner.load(
+      (p) => {
+        state.refineLoad = p;
+      },
+      { around },
+    );
+  } catch (err) {
     refiner.failed = true;
     logError("refiner", err);
     console.warn("precise outlines unavailable", err);

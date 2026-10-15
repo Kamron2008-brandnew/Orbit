@@ -30,8 +30,15 @@ function frame(now) {
     else if (state.phase === "intro") formIntro(now, dt);
     else if (state.phase === "review") formReview(now, dt);
     else formCamera(now);
-  } catch (e) { logError("frame", e); }
-  try { particles.step(dt, now / 1000); particles.render(); } catch (e) { logError("render", e); }
+  } catch (e) {
+    logError("frame", e);
+  }
+  try {
+    particles.step(dt, now / 1000);
+    particles.render();
+  } catch (e) {
+    logError("render", e);
+  }
 }
 requestAnimationFrame(frame);
 
@@ -47,7 +54,7 @@ document.addEventListener("visibilitychange", () => {
 syncStability();
 if (crashNotice) setTimeout(() => toast(crashNotice, 7000), 1200);
 
-refreshCount().then(scans => {
+refreshCount().then((scans) => {
   state.scanCount = scans.length;
   setLastThumb(scans[0]);
 });

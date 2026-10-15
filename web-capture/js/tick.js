@@ -10,7 +10,11 @@ import { autoDetect, updateObject } from "./tracking.js";
 import { syncCanScan } from "./ui.js";
 
 export function analyzeTick() {
-  try { analyzeStep(); } catch (e) { logError("tick", e); }
+  try {
+    analyzeStep();
+  } catch (e) {
+    logError("tick", e);
+  }
 }
 function analyzeStep() {
   if (state.phase === "intro" || state.phase === "review" || state.panel || document.hidden) return;

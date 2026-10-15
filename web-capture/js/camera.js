@@ -17,8 +17,18 @@ async function startStream() {
     audio: false,
     // the more pixels each keyframe has, the finer the final model's detail and texture
     video: settings.maxDetail
-      ? { facingMode: { ideal: "environment" }, width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 30 } }
-      : { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+      ? {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 3840 },
+          height: { ideal: 2160 },
+          frameRate: { ideal: 30 },
+        }
+      : {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 },
+        },
   });
   state.stream = stream;
   state.track = stream.getVideoTracks()[0];
@@ -32,21 +42,38 @@ async function startStream() {
 
 function cameraError(e) {
   if (!window.isSecureContext) return "The camera only works over a secure https link.";
-  if (e?.name === "NotAllowedError") return "Camera access is blocked. In Settings, open Safari, set Camera to Allow, then reload this page.";
-  if (e?.name === "NotFoundError" || e?.name === "OverconstrainedError") return "No usable camera was found on this device.";
+  if (e?.name === "NotAllowedError")
+    return "Camera access is blocked. In Settings, open Safari, set Camera to Allow, then reload this page.";
+  if (e?.name === "NotFoundError" || e?.name === "OverconstrainedError")
+    return "No usable camera was found on this device.";
   return `The camera didn't start (${e?.message || e}).`;
 }
 
-export async function keepAwake() { try { state.wakeLock = await navigator.wakeLock?.request("screen"); } catch {} }
-export async function recoverCamera() { try { await startStream(); } catch (e) { toast(cameraError(e), 5000); } }
+export async function keepAwake() {
+  try {
+    state.wakeLock = await navigator.wakeLock?.request("screen");
+  } catch {}
+}
+export async function recoverCamera() {
+  try {
+    await startStream();
+  } catch (e) {
+    toast(cameraError(e), 5000);
+  }
+}
 
 $("openCam").addEventListener("click", async () => {
   $("introErr").textContent = "";
   unlockAudio();
   haptic("tap");
-  const motionP = requestMotion().then(() => true, () => false); // must start inside the tap on iOS
+  const motionP = requestMotion().then(
+    () => true,
+    () => false,
+  ); // must start inside the tap on iOS
   if (!navigator.mediaDevices?.getUserMedia) {
-    $("introErr").textContent = window.isSecureContext ? "This browser can't use the camera. Open the link in Safari." : cameraError();
+    $("introErr").textContent = window.isSecureContext
+      ? "This browser can't use the camera. Open the link in Safari."
+      : cameraError();
     return;
   }
   $("openCam").disabled = true;
@@ -83,21 +110,32 @@ function placeSegThumb() {
 window.addEventListener("resize", placeSegThumb);
 placeSegThumb();
 
-document.querySelectorAll(".segmented button").forEach(b => b.addEventListener("click", () => {
-  if (state.phase !== "live") return;
-  state.mode = b.dataset.mode;
-  body.dataset.mode = state.mode;
-  document.querySelectorAll(".segmented button").forEach(x => x.setAttribute("aria-checked", String(x === b)));
-  placeSegThumb();
-  haptic("tap");
-  click(0.4);
-  toast(state.mode === "walk" ? "Walk slowly around the object with the phone." : "Rest the phone on something steady and turn the object.", 2800);
-}));
+document.querySelectorAll(".segmented button").forEach((b) =>
+  b.addEventListener("click", () => {
+    if (state.phase !== "live") return;
+    state.mode = b.dataset.mode;
+    body.dataset.mode = state.mode;
+    document.querySelectorAll(".segmented button").forEach((x) => x.setAttribute("aria-checked", String(x === b)));
+    placeSegThumb();
+    haptic("tap");
+    click(0.4);
+    toast(
+      state.mode === "walk"
+        ? "Walk slowly around the object with the phone."
+        : "Rest the phone on something steady and turn the object.",
+      2800,
+    );
+  }),
+);
 
 $("torchBtn").addEventListener("click", async () => {
   state.torch = !state.torch;
-  try { await state.track.applyConstraints({ advanced: [{ torch: state.torch }] }); }
-  catch { state.torch = false; toast("The light isn't available right now."); }
+  try {
+    await state.track.applyConstraints({ advanced: [{ torch: state.torch }] });
+  } catch {
+    state.torch = false;
+    toast("The light isn't available right now.");
+  }
   $("torchBtn").classList.toggle("on", state.torch);
   haptic("tap");
 });

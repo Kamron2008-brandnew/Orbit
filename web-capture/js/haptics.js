@@ -7,7 +7,9 @@ const canVibrate = typeof navigator.vibrate === "function";
 let enabled = true;
 let lastTick = 0;
 
-export function setHaptics(on) { enabled = !!on; }
+export function setHaptics(on) {
+  enabled = !!on;
+}
 
 function iosTick() {
   try {
@@ -21,18 +23,20 @@ function iosTick() {
     document.head.appendChild(label);
     label.click();
     label.remove();
-  } catch { /* unsupported: stay silent */ }
+  } catch {
+    /* unsupported: stay silent */
+  }
 }
 
 // Offsets (ms) of each tick for iOS, and equivalent vibrate() patterns for Android.
 const PATTERNS = {
-  tick:    { ios: [0],               vib: [8] },
-  tap:     { ios: [0],               vib: [12] },
-  lock:    { ios: [0, 90],           vib: [14, 70, 14] },
-  count:   { ios: [0],               vib: [18] },
-  go:      { ios: [0, 70],           vib: [30, 50, 30] },
-  ring:    { ios: [0, 80, 160],      vib: [16, 60, 16, 60, 30] },
-  warn:    { ios: [0, 60, 120],      vib: [40, 40, 40] },
+  tick: { ios: [0], vib: [8] },
+  tap: { ios: [0], vib: [12] },
+  lock: { ios: [0, 90], vib: [14, 70, 14] },
+  count: { ios: [0], vib: [18] },
+  go: { ios: [0, 70], vib: [30, 50, 30] },
+  ring: { ios: [0, 80, 160], vib: [16, 60, 16, 60, 30] },
+  warn: { ios: [0, 60, 120], vib: [40, 40, 40] },
   success: { ios: [0, 90, 180, 330], vib: [16, 70, 16, 70, 16, 140, 60] },
 };
 
@@ -44,6 +48,11 @@ export function haptic(kind = "tick") {
     lastTick = now;
   }
   const p = PATTERNS[kind] || PATTERNS.tick;
-  if (canVibrate) { try { navigator.vibrate(p.vib); } catch {} return; }
+  if (canVibrate) {
+    try {
+      navigator.vibrate(p.vib);
+    } catch {}
+    return;
+  }
   for (const delay of p.ios) delay ? setTimeout(iosTick, delay) : iosTick();
 }

@@ -9,16 +9,16 @@ const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
     let c = n;
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
     t[n] = c >>> 0;
   }
   return t;
 })();
 
 function crc32(bytes) {
-  let c = 0xFFFFFFFF;
-  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
-  return (c ^ 0xFFFFFFFF) >>> 0;
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
 }
 
 function dosDateTime(d) {
@@ -43,8 +43,10 @@ export async function makeZip(files, onProgress) {
     const size = isText ? 0 : blob.size;
     let body = null;
     let crc;
-    if (isText) { body = enc.encode(f.data); crc = crc32(body); }
-    else {
+    if (isText) {
+      body = enc.encode(f.data);
+      crc = crc32(body);
+    } else {
       const bytes = new Uint8Array(await blob.arrayBuffer()); // one file at a time
       crc = crc32(bytes);
     }
@@ -55,7 +57,7 @@ export async function makeZip(files, onProgress) {
     lh.setUint32(0, 0x04034b50, true);
     lh.setUint16(4, 20, true);
     lh.setUint16(6, 0x0800, true); // UTF-8 names
-    lh.setUint16(8, 0, true);      // stored
+    lh.setUint16(8, 0, true); // stored
     lh.setUint16(10, time, true);
     lh.setUint16(12, date, true);
     lh.setUint32(14, crc, true);

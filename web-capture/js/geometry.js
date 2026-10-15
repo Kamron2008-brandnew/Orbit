@@ -5,10 +5,11 @@ export const BANDS = [
   { label: "top", sectors: 12, elevMin: 50, elevMax: 90, need: 0.5, optional: true },
 ];
 
-export const bandFor = elev => (elev < 50 ? 0 : 1);
-export const sectorFor = (band, angle) => Math.floor(((((angle % 360) + 360) % 360) / 360) * BANDS[band].sectors) % BANDS[band].sectors;
+export const bandFor = (elev) => (elev < 50 ? 0 : 1);
+export const sectorFor = (band, angle) =>
+  Math.floor(((((angle % 360) + 360) % 360) / 360) * BANDS[band].sectors) % BANDS[band].sectors;
 
-export const emptyCoverage = () => BANDS.map(b => new Uint8Array(b.sectors));
+export const emptyCoverage = () => BANDS.map((b) => new Uint8Array(b.sectors));
 
 export function bandFill(cov, b) {
   let n = 0;
@@ -17,7 +18,7 @@ export function bandFill(cov, b) {
 }
 
 // Progress toward a complete scan: the loop around the object.
-export const progressOf = cov => Math.min(1, bandFill(cov, 0) / BANDS[0].need);
+export const progressOf = (cov) => Math.min(1, bandFill(cov, 0) / BANDS[0].need);
 
 // The band still needed (-1 when the scan is complete). Optional bands never block completion.
 export function targetBand(cov) {
@@ -25,4 +26,4 @@ export function targetBand(cov) {
   return -1;
 }
 
-export const topBonus = cov => Math.min(1, bandFill(cov, 1) / BANDS[1].need);
+export const topBonus = (cov) => Math.min(1, bandFill(cov, 1) / BANDS[1].need);

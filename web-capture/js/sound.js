@@ -29,7 +29,9 @@ export function unlockAudio() {
   } catch {}
 }
 
-function ready() { return soundOn && ctx && ctx.state === "running"; }
+function ready() {
+  return soundOn && ctx && ctx.state === "running";
+}
 
 // A short filtered noise burst: sounds like a watch bezel click.
 export function click(bright = 1) {
@@ -68,15 +70,33 @@ export function chime(kind) {
   if (!ready()) return;
   const t = ctx.currentTime + 0.01;
   const seq = {
-    lock: [[1318.5, 0, .18]],
-    ring: [[987.8, 0, .5], [1480, .09, .6]],
-    success: [[784, 0, .7], [987.8, .1, .7], [1318.5, .2, .8], [1975.5, .32, 1.0]],
-    warn: [[392, 0, .22], [329.6, .11, .3]],
-    start: [[659.3, 0, .25], [1318.5, .06, .35]],
-    stop: [[1318.5, 0, .2], [659.3, .07, .35]],
+    lock: [[1318.5, 0, 0.18]],
+    ring: [
+      [987.8, 0, 0.5],
+      [1480, 0.09, 0.6],
+    ],
+    success: [
+      [784, 0, 0.7],
+      [987.8, 0.1, 0.7],
+      [1318.5, 0.2, 0.8],
+      [1975.5, 0.32, 1.0],
+    ],
+    warn: [
+      [392, 0, 0.22],
+      [329.6, 0.11, 0.3],
+    ],
+    start: [
+      [659.3, 0, 0.25],
+      [1318.5, 0.06, 0.35],
+    ],
+    stop: [
+      [1318.5, 0, 0.2],
+      [659.3, 0.07, 0.35],
+    ],
   }[kind];
   if (!seq) return;
-  for (const [f, at, dur] of seq) tone(f, t + at, dur, kind === "warn" ? 0.05 : 0.065, kind === "warn" ? "triangle" : "sine");
+  for (const [f, at, dur] of seq)
+    tone(f, t + at, dur, kind === "warn" ? 0.05 : 0.065, kind === "warn" ? "triangle" : "sine");
 }
 
 export function say(text, { force = false } = {}) {

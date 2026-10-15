@@ -11,12 +11,21 @@ const RAD = Math.PI / 180;
 let lastHeading = null;
 let lastT = 0;
 
-function angDiff(a, b) { return ((a - b + 540) % 360) - 180; }
+function angDiff(a, b) {
+  return ((a - b + 540) % 360) - 180;
+}
 
 function onOrientation(e) {
   if (e.alpha == null || e.beta == null || e.gamma == null) return;
-  const a = e.alpha * RAD, b = e.beta * RAD, g = e.gamma * RAD;
-  const cA = Math.cos(a), sA = Math.sin(a), cB = Math.cos(b), sB = Math.sin(b), cG = Math.cos(g), sG = Math.sin(g);
+  const a = e.alpha * RAD,
+    b = e.beta * RAD,
+    g = e.gamma * RAD;
+  const cA = Math.cos(a),
+    sA = Math.sin(a),
+    cB = Math.cos(b),
+    sB = Math.sin(b),
+    cG = Math.cos(g),
+    sG = Math.sin(g);
   // Device -Z axis (out of the back camera) in Earth frame (x east, y north, z up), from R = Rz(a)Rx(b)Ry(g).
   const x = -(cG * sA * sB + cA * sG);
   const y = -(sA * sG - cA * cG * sB);
@@ -57,16 +66,19 @@ function listen() {
 
 // Call synchronously from a tap: iOS only shows the permission prompt inside a user gesture.
 export function requestMotion() {
-  const DOE = window.DeviceOrientationEvent, DME = window.DeviceMotionEvent;
+  const DOE = window.DeviceOrientationEvent,
+    DME = window.DeviceMotionEvent;
   const asks = [];
   if (DOE && typeof DOE.requestPermission === "function") asks.push(DOE.requestPermission());
   if (DME && typeof DME.requestPermission === "function") asks.push(DME.requestPermission());
   // Listen if anything was granted: orientation alone is enough for coverage; motion only adds shake detection.
-  return Promise.allSettled(asks).then(results => {
-    const granted = results.filter(r => r.status === "fulfilled" && r.value === "granted").length;
+  return Promise.allSettled(asks).then((results) => {
+    const granted = results.filter((r) => r.status === "fulfilled" && r.value === "granted").length;
     if (asks.length && !granted) throw new Error("motion-denied");
     listen();
   });
 }
 
-export function angleDiff(a, b) { return angDiff(a, b); }
+export function angleDiff(a, b) {
+  return angDiff(a, b);
+}

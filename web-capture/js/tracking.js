@@ -14,8 +14,12 @@ export function updateObject(obj, fromRefiner = false) {
   // Before scanning, the outline must stay one plausible object: not most of the view (the table, the wall),
   // and following a real edge nearly all the way round. A new guess must also be where the camera points.
   // (Once locked the bar is a little lower, so a moment of blur doesn't drop a good object.)
-  if (ok && state.phase === "live" && (obj.frac > 0.62 || edgeSupport(obj) < (state.locked ? 0.66 : 0.78) ||
-    (!state.locked && !nearCentre(obj, 0.08)))) ok = false;
+  if (
+    ok &&
+    state.phase === "live" &&
+    (obj.frac > 0.62 || edgeSupport(obj) < (state.locked ? 0.66 : 0.78) || (!state.locked && !nearCentre(obj, 0.08)))
+  )
+    ok = false;
   // Same object? Its colour make-up must match what you chose. Stops the tracker sliding onto the table,
   // the wall or a neighbouring object, the main way a live outline "picks up the wrong thing".
   if (ok && state.refHist && !fromRefiner && analyzer.rgba) {
@@ -25,7 +29,9 @@ export function updateObject(obj, fromRefiner = false) {
   // A single odd frame (a reflection, a hand passing) shouldn't replace a good outline: ignore sudden jumps
   // in size or position unless they persist.
   if (ok && state.locked && state.obj && state.fracEMA) {
-    const jump = obj.frac > state.fracEMA * 1.9 || obj.frac < state.fracEMA * 0.45 ||
+    const jump =
+      obj.frac > state.fracEMA * 1.9 ||
+      obj.frac < state.fracEMA * 0.45 ||
       Math.hypot(obj.center[0] - state.obj.center[0], obj.center[1] - state.obj.center[1]) > 0.22;
     if (jump && ++state.glitch < 4) return;
   }
@@ -44,7 +50,10 @@ export function updateObject(obj, fromRefiner = false) {
       state.locked = true;
       state.userSeed = null; // from here on, follow the object itself
       state.lockedAt = performance.now();
-      if (state.phase === "live") { haptic("tap"); click(0.15); } // found it
+      if (state.phase === "live") {
+        haptic("tap");
+        click(0.15);
+      } // found it
     }
   } else {
     state.valid = 0;
@@ -61,7 +70,13 @@ export function updateObject(obj, fromRefiner = false) {
 // Nothing to tap: the object in the middle of the view is found and outlined on its own. A guess is kept only
 // once it settles into one plausible whole object, and it is let go when you point at something else.
 // Recording never starts by itself: only the shutter starts it.
-const PROBES = [[0.5, 0.5], [0.5, 0.57], [0.5, 0.43], [0.44, 0.5], [0.56, 0.5]];
+const PROBES = [
+  [0.5, 0.5],
+  [0.5, 0.57],
+  [0.5, 0.43],
+  [0.44, 0.5],
+  [0.56, 0.5],
+];
 
 function nearCentre(o, margin) {
   const [x0, y0, x1, y1] = o.boxN;
@@ -72,22 +87,34 @@ function nearCentre(o, margin) {
 // A real object's outline follows its edge almost all the way round; a patch of floor or wall that the
 // segmenter cut out only follows real edges in places (tested: the bottle 0.94, a false patch beside it 0.57).
 function edgeSupport(obj) {
-  const rgba = analyzer.rgba, AW = analyzer.W, AH = analyzer.H;
+  const rgba = analyzer.rgba,
+    AW = analyzer.W,
+    AH = analyzer.H;
   const rc = rgba && resampleContour(obj.contour, 72);
   if (!rc) return 0;
   const px = rc.map(([x, y]) => [x * AW, y * AH]);
-  const cx = obj.center[0] * AW, cy = obj.center[1] * AH;
+  const cx = obj.center[0] * AW,
+    cy = obj.center[1] * AH;
   const at = (x, y) => (clamp(Math.round(y), 0, AH - 1) * AW + clamp(Math.round(x), 0, AW - 1)) * 4;
   let on = 0;
   for (let i = 0; i < px.length; i++) {
-    const p = px[i], a = px[(i + px.length - 1) % px.length], b = px[(i + 1) % px.length];
-    let nx = a[1] - b[1], ny = b[0] - a[0];
+    const p = px[i],
+      a = px[(i + px.length - 1) % px.length],
+      b = px[(i + 1) % px.length];
+    let nx = a[1] - b[1],
+      ny = b[0] - a[0];
     const L = Math.hypot(nx, ny) || 1;
-    nx /= L; ny /= L;
-    if (nx * (p[0] - cx) + ny * (p[1] - cy) < 0) { nx = -nx; ny = -ny; } // point it outwards
+    nx /= L;
+    ny /= L;
+    if (nx * (p[0] - cx) + ny * (p[1] - cy) < 0) {
+      nx = -nx;
+      ny = -ny;
+    } // point it outwards
     let step = 0;
-    for (const e of [2, 3, 4]) { // the outline may sit a pixel or two off the true edge
-      const u = at(p[0] - nx * e, p[1] - ny * e), v = at(p[0] + nx * e, p[1] + ny * e);
+    for (const e of [2, 3, 4]) {
+      // the outline may sit a pixel or two off the true edge
+      const u = at(p[0] - nx * e, p[1] - ny * e),
+        v = at(p[0] + nx * e, p[1] + ny * e);
       step = Math.max(step, Math.hypot(rgba[u] - rgba[v], rgba[u + 1] - rgba[v + 1], rgba[u + 2] - rgba[v + 2]));
     }
     if (step >= 14) on++;
@@ -108,20 +135,39 @@ export function autoDetect(now) {
   }
   if (state.locked) state.seenAt = now;
   // a guess that never settled into an object, or an object that was lost: look again
-  else if (now - Math.max(state.probeAt, state.seenAt) > 1600) { clearSelection(); return; }
+  else if (now - Math.max(state.probeAt, state.seenAt) > 1600) {
+    clearSelection();
+    return;
+  }
   // pointed at something else: once the middle of the view has been off the object for a moment, let it go
   if (state.locked && state.obj) {
     if (nearCentre(state.obj, 0.1)) state.offCentreSince = 0;
     else if (!state.offCentreSince) state.offCentreSince = now;
-    else if (now - state.offCentreSince > 1200) { state.probe = 0; clearSelection(); }
+    else if (now - state.offCentreSince > 1200) {
+      state.probe = 0;
+      clearSelection();
+    }
   }
 }
 
 function selectAt(nx, ny) {
   Object.assign(state, {
-    selected: true, obj: null, lastObj: null, locked: false, valid: 1, lost: 0, glitch: 0, fracEMA: 0,
-    seed: [nx, ny], userSeed: [nx, ny], precise: false, refHist: null, offCentreSince: 0,
-    edit: { pos: [[nx, ny]] }, pendingSelect: { at: performance.now() }, retargetUntil: performance.now() + 1500,
+    selected: true,
+    obj: null,
+    lastObj: null,
+    locked: false,
+    valid: 1,
+    lost: 0,
+    glitch: 0,
+    fracEMA: 0,
+    seed: [nx, ny],
+    userSeed: [nx, ny],
+    precise: false,
+    refHist: null,
+    offCentreSince: 0,
+    edit: { pos: [[nx, ny]] },
+    pendingSelect: { at: performance.now() },
+    retargetUntil: performance.now() + 1500,
   });
   outliner.prev = null;
   syncCanScan();
@@ -129,8 +175,18 @@ function selectAt(nx, ny) {
 
 export function clearSelection() {
   Object.assign(state, {
-    selected: false, obj: null, lastObj: null, locked: false, valid: 0, lost: 0, precise: false, refHist: null,
-    pendingSelect: null, edit: { pos: [] }, userSeed: null, offCentreSince: 0,
+    selected: false,
+    obj: null,
+    lastObj: null,
+    locked: false,
+    valid: 0,
+    lost: 0,
+    precise: false,
+    refHist: null,
+    pendingSelect: null,
+    edit: { pos: [] },
+    userSeed: null,
+    offCentreSince: 0,
   });
   targets.ready = false;
   outliner.prev = null;

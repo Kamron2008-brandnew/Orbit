@@ -11,8 +11,12 @@ export const REFINE_SIZE = 1024; // the model's own input size (long side)
 
 export class Refiner {
   constructor() {
-    this.ready = false; this.failed = false; this.busy = false;
-    this.device = null; this.ms = 0; this.progress = 0;
+    this.ready = false;
+    this.failed = false;
+    this.busy = false;
+    this.device = null;
+    this.ms = 0;
+    this.progress = 0;
     this.canvas = document.createElement("canvas");
     this.ctx = this.canvas.getContext("2d", { willReadFrequently: true });
   }
@@ -22,27 +26,38 @@ export class Refiner {
   // page frozen meanwhile, so it is not used at all unless allowWasm is set.
   async load(onProgress, { around = (name, fn) => fn(), allowWasm = false } = {}) {
     let gpu = false;
-    try { gpu = !!(navigator.gpu && (await navigator.gpu.requestAdapter())); } catch {}
+    try {
+      gpu = !!(navigator.gpu && (await navigator.gpu.requestAdapter()));
+    } catch {}
     if (!gpu && !allowWasm) throw new Error("WebGPU is not available on this device");
     const T = await import(TJS);
     this.T = T;
     this.device = gpu ? "webgpu" : "wasm";
     const files = new Map();
-    const progress_callback = p => {
+    const progress_callback = (p) => {
       if (p.status === "progress" && p.total) {
         files.set(p.file, [p.loaded, p.total]);
-        let l = 0, t = 0;
-        for (const [a, b] of files.values()) { l += a; t += b; }
+        let l = 0,
+          t = 0;
+        for (const [a, b] of files.values()) {
+          l += a;
+          t += b;
+        }
         this.progress = l / t;
         onProgress?.(this.progress);
       }
     };
     await around("refiner", async () => {
-      this.model = await T.EdgeTamModel.from_pretrained(MODEL, { dtype: gpu ? "fp16" : "q8", device: this.device, progress_callback });
+      this.model = await T.EdgeTamModel.from_pretrained(MODEL, {
+        dtype: gpu ? "fp16" : "q8",
+        device: this.device,
+        progress_callback,
+      });
       this.processor = await T.AutoProcessor.from_pretrained(MODEL);
       // warm up (the first GPU run compiles shaders)
       const c = document.createElement("canvas");
-      c.width = 64; c.height = 64;
+      c.width = 64;
+      c.height = 64;
       await this.segmentCanvas(c, { box: [8, 8, 56, 56] });
     });
     this.ready = true;
@@ -54,23 +69,33 @@ export class Refiner {
       if (!t) continue;
       try {
         if (typeof t.dispose === "function") t.dispose();
-        else if (typeof t === "object") for (const v of Object.values(t)) if (v && typeof v.dispose === "function") v.dispose();
-      } catch { /* already released */ }
+        else if (typeof t === "object")
+          for (const v of Object.values(t)) if (v && typeof v.dispose === "function") v.dispose();
+      } catch {
+        /* already released */
+      }
     }
   }
 
   // Stop using the model and release it (the device could not run it).
   async unload() {
     this.ready = false;
-    try { await this.model?.dispose?.(); } catch {}
-    this.model = null; this.processor = null;
+    try {
+      await this.model?.dispose?.();
+    } catch {}
+    this.model = null;
+    this.processor = null;
   }
 
   // Draw a source (video, image, canvas) into the working canvas at the model's size.
   frame(src, sw, sh) {
     const s = REFINE_SIZE / Math.max(sw, sh);
-    const W = Math.round(sw * s), H = Math.round(sh * s);
-    if (this.canvas.width !== W || this.canvas.height !== H) { this.canvas.width = W; this.canvas.height = H; }
+    const W = Math.round(sw * s),
+      H = Math.round(sh * s);
+    if (this.canvas.width !== W || this.canvas.height !== H) {
+      this.canvas.width = W;
+      this.canvas.height = H;
+    }
     this.ctx.drawImage(src, 0, 0, W, H);
     return this.canvas;
   }
@@ -82,10 +107,10 @@ export class Refiner {
     const t0 = performance.now();
     const image = await T.RawImage.fromCanvas(canvas);
     const opts = {};
-    if (box) opts.input_boxes = [[box.map(v => Math.round(v))]];
-    const pts = [...pos.map(p => [p, 1]), ...neg.map(p => [p, 0])];
+    if (box) opts.input_boxes = [[box.map((v) => Math.round(v))]];
+    const pts = [...pos.map((p) => [p, 1]), ...neg.map((p) => [p, 0])];
     if (pts.length) {
-      opts.input_points = [[pts.map(([p]) => p.map(v => Math.round(v)))]];
+      opts.input_points = [[pts.map(([p]) => p.map((v) => Math.round(v)))]];
       opts.input_labels = [[pts.map(([, l]) => l)]];
     }
     const inputs = await processor(image, opts);
@@ -99,7 +124,9 @@ export class Refiner {
     for (let k = 1; k < scores.length; k++) if (scores[k] > scores[best]) best = k;
     const one = out.pred_masks.slice(null, null, [best, best + 1]);
     const m = (await processor.post_process_masks(one, inputs.original_sizes, inputs.reshaped_input_sizes))[0];
-    const W = m.dims[m.dims.length - 1], H = m.dims[m.dims.length - 2], per = W * H;
+    const W = m.dims[m.dims.length - 1],
+      H = m.dims[m.dims.length - 2],
+      per = W * H;
     const mask = new Uint8Array(per);
     const data = m.data;
     for (let i = 0; i < per; i++) mask[i] = data[i] ? 1 : 0;
@@ -116,7 +143,7 @@ export class Refiner {
     try {
       const canvas = this.frame(src, sw, sh);
       const s = canvas.width / sw;
-      const scale = p => [p[0] * s, p[1] * s];
+      const scale = (p) => [p[0] * s, p[1] * s];
       const r = await this.segmentCanvas(canvas, {
         box: prompt.box && [prompt.box[0] * s, prompt.box[1] * s, prompt.box[2] * s, prompt.box[3] * s],
         pos: (prompt.pos || []).map(scale),

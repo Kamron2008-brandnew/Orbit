@@ -16,14 +16,16 @@ function wanted(st) {
   if (st.lum < LIGHT.dark) return ["bad", "Too dark. Find more light", "It's too dark. Find more light."];
   if (st.lum > LIGHT.bright) return ["warn", "Too much glare", "There's too much glare."];
   if (!outliner.ready && !outliner.failed) return ["info", "Loading object detection"];
-  if (outliner.ready && !state.locked) return scanning
-    ? ["warn", "Point back at the object", "Point back at the object."]
-    : ["info", state.lastObj ? "Finding its edges" : "Looking for an object"];
+  if (outliner.ready && !state.locked)
+    return scanning
+      ? ["warn", "Point back at the object", "Point back at the object."]
+      : ["info", state.lastObj ? "Finding its edges" : "Looking for an object"];
   if (state.locked && state.obj) {
     if (state.obj.frac < 0.035) return ["warn", "Move closer", "Move closer."];
     if (state.obj.edges >= 2 || state.obj.frac > 0.6) return ["warn", "Step back a little", "Step back a little."];
     const [cx, cy] = state.obj.center;
-    if (Math.abs(cx - 0.5) > 0.27 || Math.abs(cy - 0.5) > 0.3) return ["warn", "Keep it centered", "Keep it in the middle."];
+    if (Math.abs(cx - 0.5) > 0.27 || Math.abs(cy - 0.5) > 0.3)
+      return ["warn", "Keep it centered", "Keep it in the middle."];
   }
   if (scanning) {
     if (state.mode === "walk") {
@@ -36,11 +38,13 @@ function wanted(st) {
     }
     if (st.sharp < Math.max(14, 0.45 * state.sharpEMA)) return ["warn", "Hold steady", "Hold steady."];
     if (sc.completeAt) return ["ok", "Every angle covered"];
-    if (state.mode === "walk" && motion.available && motion.elev < 6 && goalBand(sc) === 0) return ["ok", "Tip: hold the phone a little higher"];
+    if (state.mode === "walk" && motion.available && motion.elev < 6 && goalBand(sc) === 0)
+      return ["ok", "Tip: hold the phone a little higher"];
     return ["ok", "Looking good"];
   }
   if (state.refining === "select" && !state.precise) return ["info", "Finding its edges"];
-  if (!refiner.ready && !refiner.failed) return ["info", `Loading precise outlines ${Math.round((state.refineLoad || 0) * 100)}%`];
+  if (!refiner.ready && !refiner.failed)
+    return ["info", `Loading precise outlines ${Math.round((state.refineLoad || 0) * 100)}%`];
   return ["ok", "Ready. Tap the shutter"];
 }
 
@@ -51,13 +55,22 @@ export function setStatus(text, level) {
   body.dataset.level = level;
   const el = $("statusText");
   el.classList.add("swap");
-  setTimeout(() => { el.textContent = text; el.classList.remove("swap"); }, reduceMotion ? 0 : 160);
+  setTimeout(
+    () => {
+      el.textContent = text;
+      el.classList.remove("swap");
+    },
+    reduceMotion ? 0 : 160,
+  );
 }
 
 export function updateGuidance(st, now) {
   if (state.phase === "saving") return;
   const [level, text, spoken] = wanted(st);
-  if (!state.cand || state.cand.text !== text) { state.cand = { level, text, spoken }; state.candSince = now; }
+  if (!state.cand || state.cand.text !== text) {
+    state.cand = { level, text, spoken };
+    state.candSince = now;
+  }
   const hold = level === "ok" || level === "info" ? 250 : 450;
   if (text === state.status || now - state.candSince < hold) return;
   const worse = (level === "warn" || level === "bad") && state.phase === "scanning";
@@ -91,14 +104,24 @@ export function updateCaption() {
   const el = $("caption");
   el.classList.remove("show");
   if (!text) return;
-  setTimeout(() => { el.textContent = text; el.classList.add("show"); }, reduceMotion ? 0 : 200);
-  if (state.phase === "scanning" && text !== state.lastSpoken) { state.lastSpoken = text; say(text + "."); }
+  setTimeout(
+    () => {
+      el.textContent = text;
+      el.classList.add("show");
+    },
+    reduceMotion ? 0 : 200,
+  );
+  if (state.phase === "scanning" && text !== state.lastSpoken) {
+    state.lastSpoken = text;
+    say(text + ".");
+  }
 }
 $("caption").style.transition = "opacity .45s cubic-bezier(.25,.9,.3,1), transform .5s cubic-bezier(.25,.9,.3,1)";
 
 export function updateHints() {
   const sc = state.scan;
-  let hint = null, elev = false;
+  let hint = null,
+    elev = false;
   if (state.phase === "scanning" && sc && motion.available) {
     const tb = goalBand(sc);
     if (tb >= 0) {
@@ -106,7 +129,7 @@ export function updateHints() {
       if (cur !== tb) {
         elev = true;
         hint = tb > cur ? ["up", "Raise the phone and look down"] : ["up", "Lower the phone a little"];
-        const toPct = e => `${(1 - clamp(e, 0, 80) / 80) * 100}%`;
+        const toPct = (e) => `${(1 - clamp(e, 0, 80) / 80) * 100}%`;
         const g = $("elev");
         g.querySelector(".elev-zone").style.top = toPct(BANDS[tb].elevMax);
         g.querySelector(".elev-zone").style.height = `${((BANDS[tb].elevMax - BANDS[tb].elevMin) / 80) * 100}%`;
@@ -116,11 +139,12 @@ export function updateHints() {
         let best = null;
         for (let s = 0; s < n; s++) {
           if (sc.coverage[tb][s]) continue;
-          const d = angleDiff((s + 0.5) / n * 360, sc.lastAngle);
+          const d = angleDiff(((s + 0.5) / n) * 360, sc.lastAngle);
           if (best === null || Math.abs(d) < Math.abs(best)) best = d;
         }
         // walking left turns the camera clockwise (heading increases)
-        if (best !== null && Math.abs(best) > 20) hint = best > 0 ? ["left", "Keep walking left"] : ["right", "Keep walking right"];
+        if (best !== null && Math.abs(best) > 20)
+          hint = best > 0 ? ["left", "Keep walking left"] : ["right", "Keep walking right"];
       }
     }
   }
@@ -133,6 +157,9 @@ export function updateHints() {
       $("hintText").textContent = hint[1];
       el.className = `glass hint hud show ${hint[0]}`;
     }
-  } else if (state.hint) { state.hint = null; el.classList.remove("show"); }
+  } else if (state.hint) {
+    state.hint = null;
+    el.classList.remove("show");
+  }
   $("elev").classList.toggle("show", elev);
 }
