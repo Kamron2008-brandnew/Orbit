@@ -50,8 +50,10 @@ function nextShape(now) {
     [lo, hi] = sh.palette;
   const css = (c) => `rgb(${c.map((v) => Math.round(v * 255)).join(",")})`;
   const intro = $("intro");
-  intro.style.setProperty("--amb-a", css(hi));
-  intro.style.setProperty("--amb-b", css(lo));
+  if (!new URLSearchParams(location.search).has("notint")) {
+    intro.style.setProperty("--amb-a", css(hi));
+    intro.style.setProperty("--amb-b", css(lo));
+  }
   const label = $("specimen");
   label.classList.remove("show");
   setTimeout(

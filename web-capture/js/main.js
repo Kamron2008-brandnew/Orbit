@@ -1,5 +1,6 @@
 // Starts the app: the particle frame loop and the page lifecycle.
 
+import { boot } from "./boot.js";
 import { guard, logError, setPhaseReader } from "./guard.js";
 import { motion } from "./motion.js";
 import { keepAwake, recoverCamera } from "./camera.js";
@@ -15,9 +16,13 @@ import { analyzer, outliner, particles, refiner, state, targets } from "./state.
 import { toast } from "./ui.js";
 import "./share.js"; // nothing else needs it: it wires up the Share button when it loads
 
+// Switches for finding out what crashes a phone, added to the address: ?lite (no blurred layers), ?nogl (don't
+// draw the particles), ?notint (the intro's glow stays one colour). Nothing changes without them.
+const flags = new URLSearchParams(location.search);
+
 // Opening the app with ?lite switches off the large blurred layers, to find out whether they are what
 // crashes a phone's browser. Nothing changes without it.
-if (new URLSearchParams(location.search).has("lite")) document.documentElement.classList.add("lite");
+if (flags.has("lite")) document.documentElement.classList.add("lite");
 
 if (!("switch" in HTMLInputElement.prototype)) document.documentElement.classList.add("no-switch");
 
@@ -39,7 +44,8 @@ function frame(now) {
   }
   try {
     particles.step(dt, now / 1000);
-    particles.render();
+    if (!flags.has("nogl")) particles.render();
+    boot.frames++;
   } catch (e) {
     logError("render", e);
   }
