@@ -376,3 +376,19 @@ body:has(#library.open #scanList:empty) .particles { z-index: 36; } /* the vase 
 @media (min-width: 720px) {
   .sheet, .page > * { max-width: 520px; margin-left: auto; margin-right: auto; }
 }
+
+/* ?lite: no blurred glow layers, no frosted glass */
+.lite .ambient,
+.lite .aurora,
+.lite .intro::before {
+  display: none;
+}
+.lite .glass,
+.lite .sheet {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.lite .stage,
+.lite #cam {
+  filter: none;
+}

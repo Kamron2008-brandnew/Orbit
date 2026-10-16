@@ -15,6 +15,10 @@ import { analyzer, outliner, particles, refiner, state, targets } from "./state.
 import { toast } from "./ui.js";
 import "./share.js"; // nothing else needs it: it wires up the Share button when it loads
 
+// Opening the app with ?lite switches off the large blurred layers, to find out whether they are what
+// crashes a phone's browser. Nothing changes without it.
+if (new URLSearchParams(location.search).has("lite")) document.documentElement.classList.add("lite");
+
 if (!("switch" in HTMLInputElement.prototype)) document.documentElement.classList.add("no-switch");
 
 setPhaseReader(() => state.phase);
